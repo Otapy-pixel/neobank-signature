@@ -1,46 +1,52 @@
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from jose import jwt, JWTError
 from pydantic import BaseModel
+import jwt
 import os
+from datetime import datetime, timedelta
 
-app = FastAPI()
+app = FastAPI(title="Néobanque Signature API")
 
+# CORS pour Flutter Web + Mobile + FlutterFlow
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # En prod mets l’URL de ton app FlutterFlow
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-security = HTTPBearer()
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-in-prod")
+SECRET_KEY = os.getenv("JWT_SECRET", "change-moi-en-prod-urgent")
+ALGORITHM = "HS256"
 
 class SignatureRequest(BaseModel):
-    document_id: str
-    signature_data: str
+    user_id: str
+    document_hash: str
 
-@app.get("/health")
+@app.get("/")
 def health():
-    return {"status": "ok"}
+    return {"status": "API Néobanque OK", "time": datetime.now().isoformat()}
 
-@app.post("/api/signature")
-def sign_document(
-    req: SignatureRequest,
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
-        user_id = payload.get("sub")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token invalide")
-    
-    return {
-        "status": "signature_ok",
-        "document_id": req.document_id,
-        "user_id": user_id,
-        "signature": req.signature_data[:20] + "..."
+@app.post("/signer")
+def signer_document(data: SignatureRequest):
+    """Génère une signature JWT pour un document"""
+    payload = {
+        "user_id": data.user_id,
+        "doc_hash": data.document_hash,
+        "iat": datetime.utcnow(),
+        "exp": datetime.utcnow() + timedelta
+        (hours=24)
     }
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return {"signature": token, "status": "signé"}
+
+@app.post("/verifier")
+def verifier_signature(token: str):
+    """Vérifie si la signature JWT est valide"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"valide": True, "data": payload}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Signature expirée")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Signature invalide")
