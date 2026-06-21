@@ -1,6 +1,6 @@
-import psycopg2_binary as psycopg2
+import psycopg2
 import sys
-sys.modules['psycopg2'] = psycopg2
+
 
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
