@@ -1,5 +1,4 @@
-import psycopg2
-import sys
+
 
 
 from flask import Flask, request, jsonify
