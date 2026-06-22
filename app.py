@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 import os
 import secrets
+import hashlib
 from datetime import datetime
 
 app = Flask(__name__)
@@ -126,7 +127,19 @@ def transfer():
         "to": receiver_email,
         "your_new_balance": sender.balance
     })
-
+@app.route('/sign', methods=['POST'])
+def sign():
+    data = request.get_json()
+    secret = data.get('secret')
+    message = data.get('data')
+    
+    SECRET = os.environ.get('SECRET_KEY')
+    
+    if secret != SECRET:
+        return jsonify({"error": "Secret invalide"}), 401
+    
+    signature = hashlib.sha256(f"{secret}{message}".encode()).hexdigest()
+    return jsonify({"signature": signature, "data": message})
 with app.app_context():
     db.create_all()
     if __name__ == "__main__":
