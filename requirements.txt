@@ -3,3 +3,5 @@ Flask-SQLAlchemy
 gunicorn==22.0.0
 psycopg2-binary==2.9.9
 Flask-Bcrypt
+stripe==7.8.0
+SQLAlchemy==2.0.21
